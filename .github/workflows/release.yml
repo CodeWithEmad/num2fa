@@ -1,0 +1,68 @@
+# This script can be tested locally with act:
+#
+#    act --secret GITHUB_TOKEN=... --job release
+#
+# https://github.com/nektos/act/
+# To generate a token: https://github.com/settings/tokens (add r/w permissions for "Contents")
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # https://github.com/actions/runner-images#available-images
+          - os: ubuntu-20.04
+            locale: C.UTF-8
+    env:
+      LC_ALL: ${{ matrix.locale }}
+      LANG: ${{ matrix.locale }}
+    steps:
+      ##### Setup environment
+      # https://github.com/actions/checkout
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        # https://github.com/actions/setup-python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.8
+          cache: 'pip'
+          cache-dependency-path: requirements/dev.txt
+      - name: Upgrade pip and setuptools
+        # https://pypi.org/project/pip/
+        # https://pypi.org/project/setuptools/
+        # https://pypi.org/project/wheel/
+        run: python -m pip install --upgrade pip setuptools==65.6.3 wheel
+      - name: Print info about the current python installation
+        run: make ci-info
+      - name: Install requirements
+        run: make bootstrap-dev
+      - name: Check or download gh utility
+        run: |
+          if ! which gh; then
+            echo "Downloading 'gh' utility"
+            if [ "$(uname -s)" = "Linux" ]; then
+              curl -L -o gh.tar.gz https://github.com/cli/cli/releases/download/v2.28.0/gh_2.28.0_linux_amd64.tar.gz
+              tar xzf gh.tar.gz
+              mv ./gh_2.28.0_linux_amd64/bin/gh /usr/local/bin/gh
+            else
+              curl -L -o gh.zip https://github.com/cli/cli/releases/download/v2.28.0/gh_2.28.0_macOS_amd64.zip
+              unzip xzf gh.zip
+              mv ./gh_2.28.0_macOS_amd64/bin/gh /usr/local/bin/gh
+            fi
+            which gh
+          fi
+
+      ##### Create release on GitHub
+      - name: Create or update GitHub release
+        run: scriv github-release --repo=codewithemad/num2fa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

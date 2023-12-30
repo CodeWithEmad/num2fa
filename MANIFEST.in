@@ -1,0 +1,2 @@
+include requirements/base.txt
+include requirements/dev.txt

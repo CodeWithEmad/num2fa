@@ -1,0 +1,7 @@
+-r base.txt
+black
+pip-tools
+pylint
+scriv
+twine
+pytest
